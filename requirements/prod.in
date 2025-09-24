@@ -1,0 +1,4 @@
+-c base.txt  # base'deki tüm bağımlılıkları içe aktar
+
+# Production-specific packages
+gunicorn==22.0.0

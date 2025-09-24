@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  web:
+    container_name: fastapi_web_dev
+    build:
+      context: .
+      target: runtime
+      # Dev üçün INSTALL_PROD=false (default)
+    image: fastapi-app:dev
+    volumes:
+      - ./:/app:delegated
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file: .env.dev
+    depends_on:
+      - db-dev
+      - redis-dev
+      - rabbitmq-dev
+    networks:
+      - appnet_dev
+
+  worker:
+    container_name: fastapi_worker_dev
+    build:
+      context: .
+      target: runtime
+    image: fastapi-app:dev
+    volumes:
+      - ./:/app:delegated
+    command: celery -A app.tasks.worker.celery_app worker --loglevel=info --concurrency=2
+    env_file: .env.dev
+    depends_on:
+      - db-dev
+      - redis-dev
+      - rabbitmq-dev
+    networks:
+      - appnet_dev
+
+  db-dev:
+    container_name: fastapi_db_dev
+    image: postgres:15
+    environment:
+      POSTGRES_DB: fastapi_db_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - appnet_dev
+
+  redis-dev:
+    container_name: fastapi_redis_dev
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - appnet_dev
+
+  rabbitmq-dev:
+    container_name: fastapi_rabbitmq_dev
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - appnet_dev
+
+networks:
+  appnet_dev:
+    driver: bridge
+    name: fastapi_dev_network
+
+volumes:
+  postgres_data_dev:

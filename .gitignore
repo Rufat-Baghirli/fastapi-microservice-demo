@@ -1,0 +1,45 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+VENV/
+
+# Dependency logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Testing and coverage
+.tox/
+.coverage
+.coverage.*
+*.cover
+nosetests.xml
+coverage.xml
+.pytest_cache/
+.hypothesis
+.mypy_cache/
+
+# Runtime and build logs
+*.log
+
+# Sensitive and database files
+*.env*
+*.sqlite
+*.db
+# EXCEPT the example file, which is a template for others
+!.env.dev.example
+
+# IDE and OS specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store

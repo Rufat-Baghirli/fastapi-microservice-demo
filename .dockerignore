@@ -1,0 +1,53 @@
+# Version control and documentation
+.git
+.gitignore
+.dockerignore
+README.md
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+VENV/
+
+# Dependency logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Testing and coverage
+.tox/
+.coverage
+.coverage.*
+*.cover
+nosetests.xml
+coverage.xml
+.pytest_cache/
+.hypothesis
+.mypy_cache/
+
+# Runtime and build logs
+*.log
+
+# Sensitive and database files
+*.env*
+*.sqlite
+*.db
+
+# Docker files (not needed inside the image)
+docker-compose*.yml
+Dockerfile*
+
+# IDE and OS specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
