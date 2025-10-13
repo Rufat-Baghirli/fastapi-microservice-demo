@@ -1,4 +1,4 @@
-name: CI/CD with Docker
+name: CI/CD Pipeline
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - '*' # Run on all branches for CI
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -16,62 +16,45 @@ jobs:
       - name: Set up Docker BuildX
         uses: docker/setup-buildx-action@v3
 
-      - name: Build production images
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          tags: fastapi-app:prod
-          target: runtime
-          build-args: INSTALL_PROD=true
-          cache-from: type=gha,scope=prod-cache
-          cache-to: type=gha,scope=prod-cache,mode=max
-          load: true # Load the image for local testing
+      - name: Start services
+        run: docker compose -f docker-compose.dev.yml up --build -d
 
-      - name: Run tests with Docker Compose (wait for /health)
+      - name: Wait for services
         run: |
-          # start services
-          docker-compose -f docker-compose.prod.yml up --build -d
-
-          echo "Installing jq for JSON parsing..."
-          sudo apt-get update -y && sudo apt-get install -y jq curl
-
-          echo "Waiting for services to be ready via /health endpoint..."
-          # Wait up to 60 seconds (30 tries x 2s)
-          READY=0
+          echo "Waiting for services to be healthy..."
+          # Wait up to 60 seconds for the web service to become healthy
           for i in $(seq 1 30); do
-            # try to request health endpoint; tolerate failures
-            HTTP=$(curl -sS -m 3 http://localhost:8000/health || echo "")
-            STATUS=$(echo "$HTTP" | jq -r '.status // empty' 2>/dev/null || echo "")
-            if [ "$STATUS" = "healthy" ] || [ "$STATUS" = "degraded" ]; then
-              echo "Service ready with status: $STATUS"
-              READY=1
+            STATUS=$(docker inspect --format '{{.State.Health.Status}}' fastapi_web_dev)
+            if [ "$STATUS" = "healthy" ]; then
+              echo "Web service is healthy!"
               break
             fi
-            echo "Not ready yet (attempt $i). Response: ${STATUS:-<no-response>}"
+            echo "Not healthy yet (attempt $i). Status: $STATUS"
             sleep 2
           done
-
-          if [ "$READY" -ne 1 ]; then
-            echo "Service didn't become ready in time. Printing logs for debugging..."
-            docker-compose -f docker-compose.prod.yml ps
-            docker-compose -f docker-compose.prod.yml logs --tail=200
-            # fail the job early so we can inspect CI logs
+          
+          # Final check
+          STATUS=$(docker inspect --format '{{.State.Health.Status}}' fastapi_web_dev)
+          if [ "$STATUS" != "healthy" ]; then
+            echo "Web service did not become healthy in time. Printing logs..."
+            docker compose -f docker-compose.dev.yml logs --tail=200
             exit 1
           fi
 
-          echo "Running tests inside web container..."
-          # run pytest -q inside the web container (adjust service name if different)
-          docker-compose -f docker-compose.prod.yml exec -T web pytest -q
+      - name: Run database migrations
+        run: docker compose -f docker-compose.dev.yml exec -T web alembic upgrade head
+
+      - name: Run tests
+        run: docker compose -f docker-compose.dev.yml exec -T web python -m pytest tests/ -v
 
       - name: Clean up Docker containers
         if: always()
-        run: docker-compose -f docker-compose.prod.yml down --volumes
+        run: docker compose -f docker-compose.dev.yml down --volumes
 
-  deploy-to-prod:
+  deploy:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: test
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -82,13 +65,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push production images to Docker Hub
+      - name: Build and push production images
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:prod
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest # Using 'latest' tag for simplicity
           target: runtime
           build-args: INSTALL_PROD=true
 
@@ -100,5 +83,5 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd /var/www/your-app-directory
-            docker-compose -f docker-compose.prod.yml pull
-            docker-compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans

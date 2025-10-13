@@ -9,7 +9,7 @@ from app.main import app
 from app.models.base import Base
 from app.db.session import get_session
 
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@db-dev:5432/test_db"
+TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@db-dev:5432/fastapi_db_dev"
 
 engine = create_async_engine(TEST_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
