@@ -35,7 +35,6 @@ celerybeat-schedule
 celerybeat.pid
 
 # TESTS & COVERAGE
-tests/
 .tox/
 .coverage
 .coverage.*
@@ -80,4 +79,3 @@ Thumbs.db
 # MISC
 __MACOSX/
 .editorconfig
-.envrc

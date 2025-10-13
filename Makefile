@@ -68,7 +68,7 @@ build:  ## Build Docker images for both environments.
 
 # Tests
 test:  ## Run tests in the development environment (interactive).
-	docker-compose -f docker-compose.dev.yml exec web python -m pytest tests/ -v
+	docker-compose -f docker-compose.dev.yml exec web pytest tests/ -v
 
 ci-test:  ## Run tests in CI environment (non-interactive, suitable for GitHub Actions).
 	docker-compose -f docker-compose.dev.yml run --rm web pytest -q --disable-warnings --maxfail=1
