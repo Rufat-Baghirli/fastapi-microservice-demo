@@ -1,17 +1,18 @@
-# app/core/config.py
 from pathlib import Path
 from typing import List, Optional
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import json
+import os
+import sys
+from pydantic import ValidationError
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    """Application settings with environment variable support"""
-
     model_config = SettingsConfigDict(
+        env_file=str(BASE_DIR / ".env"),   # default .env
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=True,
@@ -46,36 +47,60 @@ class Settings(BaseSettings):
     RABBITMQ_URL: str = "amqp://guest:guest@rabbitmq:5672//"
     REDIS_URL: str = "redis://redis:6379/0"
 
-    @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v) -> List[str]:
+    def _parse_cors(cls, v) -> List[str]:
         if isinstance(v, str):
             s = v.strip()
+            if not s:
+                return []
             if s.startswith("["):
                 try:
-                    return [origin.strip() for origin in json.loads(s)]
+                    parsed = json.loads(s)
+                    return [o.strip() for o in parsed if isinstance(o, str)]
                 except json.JSONDecodeError:
-                    return [s.strip()]
+                    return [s]
             return [origin.strip() for origin in s.split(",") if origin.strip()]
         return v if isinstance(v, list) else []
 
+    from pydantic import field_validator
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v) -> List[str]:
+        return cls._parse_cors(v)
+
     @field_validator("SYNC_DATABASE_URL", mode="before")
     @classmethod
-    def set_sync_database_url(cls, v, values):
+    def set_sync_database_url(cls, v, info):
         if v:
             return v
-        data = values.data if hasattr(values, 'data') else values
-        if "DATABASE_URL" in data:
-            return data["DATABASE_URL"].replace("+asyncpg", "")
+        values = info.data if hasattr(info, "data") else info
+        db_url = values.get("DATABASE_URL") or os.getenv("DATABASE_URL") or ""
+        if db_url:
+            return db_url.replace("+asyncpg", "")
         return v
 
     @field_validator("RUN_MIGRATIONS_ON_STARTUP", mode="before")
     @classmethod
     def convert_to_bool(cls, v) -> bool:
         if isinstance(v, str):
-            return v.lower() in ('true', '1', 't', 'y', 'yes')
+            return v.lower() in ("true", "1", "t", "y", "yes")
         return bool(v)
 
+    @property
+    def SYNC_DB(self) -> Optional[str]:
+        return self.SYNC_DATABASE_URL or (self.DATABASE_URL.replace("+asyncpg", "") if self.DATABASE_URL else None)
 
-# Global settings instance
-settings = Settings()
+
+def get_settings(env_file: Optional[str] = None) -> Settings:
+    try:
+        if env_file:
+            return Settings(_env_file=str(env_file))
+        return Settings()
+    except ValidationError as exc:
+        print("⚠️ Settings validation error. Check environment variables and .env files.", file=sys.stderr)
+        print(exc, file=sys.stderr)
+        raise
+
+
+settings = get_settings()

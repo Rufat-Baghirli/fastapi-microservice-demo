@@ -14,3 +14,4 @@ async def trigger_send_email(payload: EmailPayload):
     # .delay() sends task to the broker (non-blocking)
     task = send_email.delay(payload.to, payload.subject, payload.body)
     return {"task_id": task.id}
+

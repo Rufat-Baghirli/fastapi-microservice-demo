@@ -1,12 +1,9 @@
-version: '3.8'
-
 services:
   web:
     container_name: fastapi_web_dev
     build:
       context: .
       target: runtime
-      # Dev üçün INSTALL_PROD=false (default)
     image: fastapi-app:dev
     volumes:
       - ./:/app:delegated

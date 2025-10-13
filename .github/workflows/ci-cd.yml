@@ -28,15 +28,41 @@ jobs:
           cache-to: type=gha,scope=prod-cache,mode=max
           load: true # Load the image for local testing
 
-      - name: Run tests with Docker Compose
+      - name: Run tests with Docker Compose (wait for /health)
         run: |
-          # Use docker-compose.prod.yml to simulate a production environment for testing
+          # start services
           docker-compose -f docker-compose.prod.yml up --build -d
-          
-          echo "Waiting for services to be ready..."
-          sleep 10
-          
-          docker-compose -f docker-compose.prod.yml exec web pytest
+
+          echo "Installing jq for JSON parsing..."
+          sudo apt-get update -y && sudo apt-get install -y jq curl
+
+          echo "Waiting for services to be ready via /health endpoint..."
+          # Wait up to 60 seconds (30 tries x 2s)
+          READY=0
+          for i in $(seq 1 30); do
+            # try to request health endpoint; tolerate failures
+            HTTP=$(curl -sS -m 3 http://localhost:8000/health || echo "")
+            STATUS=$(echo "$HTTP" | jq -r '.status // empty' 2>/dev/null || echo "")
+            if [ "$STATUS" = "healthy" ] || [ "$STATUS" = "degraded" ]; then
+              echo "Service ready with status: $STATUS"
+              READY=1
+              break
+            fi
+            echo "Not ready yet (attempt $i). Response: ${STATUS:-<no-response>}"
+            sleep 2
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "Service didn't become ready in time. Printing logs for debugging..."
+            docker-compose -f docker-compose.prod.yml ps
+            docker-compose -f docker-compose.prod.yml logs --tail=200
+            # fail the job early so we can inspect CI logs
+            exit 1
+          fi
+
+          echo "Running tests inside web container..."
+          # run pytest -q inside the web container (adjust service name if different)
+          docker-compose -f docker-compose.prod.yml exec -T web pytest -q
 
       - name: Clean up Docker containers
         if: always()

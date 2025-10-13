@@ -1,53 +1,83 @@
-# Version control and documentation
+# VERSION CONTROL & DOCS
 .git
 .gitignore
 .dockerignore
 README.md
+LICENSE
+*.md
 
-# Python artifacts
+# PYTHON ARTIFACTS
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
 
-# Virtual environments
+# ENVIRONMENTS
+.venv/
 venv/
 env/
 ENV/
 VENV/
+.venv*/
+env*/
+ENV*/
+VENV*/
 
-# Dependency logs
-pip-log.txt
-pip-delete-this-directory.txt
+# LOGS & RUNTIME FILES
+*.log
+logs/
+*.pid
+*.sock
+celerybeat-schedule
+celerybeat.pid
 
-# Testing and coverage
+# TESTS & COVERAGE
+tests/
 .tox/
 .coverage
 .coverage.*
 *.cover
+*.py,cover
 nosetests.xml
 coverage.xml
+htmlcov/
 .pytest_cache/
-.hypothesis
+.hypothesis/
 .mypy_cache/
+.cache/
+test-results.xml
 
-# Runtime and build logs
-*.log
-
-# Sensitive and database files
-*.env*
+# DATABASE & ENV FILES
 *.sqlite
 *.db
+.env
+.env.*
+!.env.dev.example
 
-# Docker files (not needed inside the image)
-docker-compose*.yml
+# DOCKER FILES
+docker-compose.dev.yml
+docker-compose.prod.yml
 Dockerfile*
+tmp/
 
-# IDE and OS specific files
+# MIGRATIONS / ALEMBIC
+alembic/versions/__pycache__/
+alembic/versions/*.pyc
+alembic/versions/*.log
+
+# IDE / OS FILES
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
+Thumbs.db
+
+# MISC
+__MACOSX/
+.editorconfig
+.envrc

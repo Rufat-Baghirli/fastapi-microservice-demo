@@ -1,82 +1,34 @@
-from typing import Optional, Sequence
-from sqlalchemy import select, update, delete
+# app/crud/user.py
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from pydantic import EmailStr
 
+from app.crud.base import CRUDBase
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 from app.services.security import hash_password
 
-# ============================================================================
-# READ Operations
-# ============================================================================
+class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
+    async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> User:
+        """Override the create method to hash the password."""
+        create_data = obj_in.model_dump()
+        create_data.pop("password")
+        db_obj = User(**create_data, hashed_password=hash_password(obj_in.password))
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return db_obj
 
-async def get_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
-    """Get user by ID"""
-    res = await db.execute(select(User).where(User.id == user_id))
-    return res.scalar_one_or_none()
+    async def get_by_email(self, db: AsyncSession, *, email: EmailStr) -> Optional[User]:
+        """Get user by email (user-specific method)."""
+        res = await db.execute(select(User).where(User.email == email))
+        return res.scalar_one_or_none()
 
-async def get_by_email(db: AsyncSession, email: EmailStr) -> Optional[User]:
-    """Get user by email"""
-    res = await db.execute(select(User).where(User.email == email))
-    return res.scalar_one_or_none()
+    async def get_by_username(self, db: AsyncSession, *, username: str) -> Optional[User]:
+        """Get user by username (user-specific method)."""
+        res = await db.execute(select(User).where(User.username == username))
+        return res.scalar_one_or_none()
 
-async def get_by_username(db: AsyncSession, username: str) -> Optional[User]:
-    """Get user by username"""
-    res = await db.execute(select(User).where(User.username == username))
-    return res.scalar_one_or_none()
-
-async def list_users(db: AsyncSession, limit: int = 50, offset: int = 0) -> Sequence[User]:
-    """List users with pagination"""
-    res = await db.execute(
-        select(User)
-        .order_by(User.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-    )
-    return res.scalars().all()
-
-# ============================================================================
-# CREATE Operation
-# ============================================================================
-
-async def create(db: AsyncSession, data: UserCreate) -> User:
-    """Create a new user"""
-    user = User(
-        email=str(data.email),
-        username=data.username,
-        hashed_password=hash_password(data.password),
-        is_active=data.is_active
-    )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
-
-# ============================================================================
-# UPDATE Operation
-# ============================================================================
-
-async def patch(db: AsyncSession, user: User, data: UserUpdate) -> User:
-    """Update user information"""
-    if data.email is not None:
-        user.email = str(data.email)
-    if data.username is not None:
-        user.username = data.username
-    if data.password is not None:
-        user.hashed_password = hash_password(data.password)
-    if data.is_active is not None:
-        user.is_active = data.is_active
-
-    await db.commit()
-    await db.refresh(user)
-    return user
-
-# ============================================================================
-# DELETE Operation
-# ============================================================================
-
-async def remove(db: AsyncSession, user: User) -> None:
-    """Delete a user"""
-    await db.delete(user)
-    await db.commit()
+# Create a single instance of the CRUDUser class
+user = CRUDUser(User)

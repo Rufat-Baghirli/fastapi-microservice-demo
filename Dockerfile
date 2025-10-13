@@ -1,81 +1,86 @@
+# Stage 1: Builder - To build and install dependencies
 FROM python:3.10.11-slim AS builder
+LABEL stage=builder
 
 WORKDIR /app
 
-# Build args
+# Arguments used during the build
 ARG APP_USER=appuser
 ARG APP_UID=1000
 ARG APP_GID=1000
 
-# System deps for building wheels
+# Install system packages required for building
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     build-essential \
     libpq-dev \
     curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+  && rm -rf /var/lib/apt/lists/*
 
-# Create venv
+# Create an isolated virtual environment
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Upgrade pip
-RUN pip install --upgrade pip setuptools wheel
+# Upgrade pip itself
+RUN python -m pip install --upgrade pip setuptools wheel
 
-# Install base dependencies into venv
-COPY requirements/base.txt .
-RUN pip install --no-cache-dir -r base.txt
+# Caching Optimization
+# First, copy only the requirements files
+COPY requirements/ ./requirements/
 
-# Install dev dependencies (builder only) if dev.txt present
-COPY requirements/dev.txt .
-RUN if [ -f dev.txt ]; then pip install --no-cache-dir -r dev.txt; fi
+# Then, install dependencies. This layer will only be rebuilt if requirements files change.
+RUN if [ -f requirements/base.txt ]; then python -m pip install --no-cache-dir -r requirements/base.txt; fi
+RUN if [ -f requirements/dev.txt ]; then python -m pip install --no-cache-dir -r requirements/dev.txt; fi
 
-# ----------------------------------------------------------------
-# Runtime stage (smaller image)
+# Stage 2: Runtime - To run the main application
 FROM python:3.10.11-slim AS runtime
+LABEL stage=runtime
 
 WORKDIR /app
 
 ARG APP_USER=appuser
 ARG APP_UID=1000
 ARG APP_GID=1000
-# New arg to conditionally install prod dependencies
 ARG INSTALL_PROD=false
 
-# Minimal runtime packages (if needed)
+# Install minimal system packages required for runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+  && rm -rf /var/lib/apt/lists/*
 
-# Copy venv from builder (contains base + dev if installed there)
+# Copy the prepared virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy prod requirements and install them only if requested
-COPY requirements/prod.txt .
-RUN if [ "$INSTALL_PROD" = "true" ] && [ -f prod.txt ]; then /opt/venv/bin/pip install --no-cache-dir -r prod.txt; fi
+# Python runtime optimizations
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# Create non-root user and set ownership
-RUN groupadd -g ${APP_GID} ${APP_USER} && \
-    useradd -m -u ${APP_UID} -g ${APP_GID} ${APP_USER} && \
-    chown -R ${APP_USER}:${APP_USER} /app
+# === Caching Optimization ===
+# First, copy only the production requirements file
+COPY requirements/prod.txt ./requirements/prod.txt
+# If this is a production build, install production dependencies
+RUN if [ "$INSTALL_PROD" = "true" ] && [ -f requirements/prod.txt ]; then python -m pip install --no-cache-dir -r requirements/prod.txt; fi
 
-# Switch to non-root user
-USER ${APP_USER}
+# Create a non-root user for security
+RUN groupadd -g ${APP_GID} ${APP_USER} \
+  && useradd -m -u ${APP_UID} -g ${APP_GID} ${APP_USER}
 
-# Copy application code (as non-root)
+# Finally, copy the entire project code. This prevents rebuilding upper layers on code changes.
 COPY --chown=${APP_USER}:${APP_USER} . .
 
-# Create logs dir with correct perms
-RUN mkdir -p logs && chown ${APP_USER}:${APP_USER} logs
+# Ensure the logs directory exists and is owned by the app user
+RUN mkdir -p logs && chown -R ${APP_USER}:${APP_USER} logs
+
+# Switch to the non-root user
+USER ${APP_USER}
 
 EXPOSE 8000
 
+# Healthcheck to verify the container's health
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://127.0.0.1:8000/health || exit 1
+  CMD curl -f http://127.0.0.1:8000/health || exit 1
 
-# Default command for dev/local (prod will override in compose)
+# Default command to run when the container starts
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
