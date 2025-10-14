@@ -48,7 +48,7 @@ jobs:
         run: docker compose -f docker-compose.dev.yml exec -T web alembic upgrade head
 
       - name: Run tests
-        run: docker compose -f docker-compose.dev.yml exec -T web python -m pytest tests/ -v
+        run: docker compose -f docker-compose.dev.yml exec -T web python -m pytest -p no:cacheprovider tests/ -v
 
       - name: Clean up Docker containers
         if: always()
