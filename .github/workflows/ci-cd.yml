@@ -56,38 +56,38 @@ jobs:
       - name: Clean up Docker containers
         if: always()
         run: docker compose -f docker-compose.dev.yml down --volumes
-
-  deploy:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push production images
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest # Using 'latest' tag for simplicity
-          target: runtime
-          build-args: INSTALL_PROD=true
-
-      - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            cd /var/www/your-app-directory
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+#
+#  deploy:
+#    if: github.ref == 'refs/heads/main'
+#    runs-on: ubuntu-latest
+#    needs: test
+#    steps:
+#      - name: Checkout Code
+#        uses: actions/checkout@v4
+#
+#      - name: Log in to Docker Hub
+#        uses: docker/login-action@v3
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+#
+#      - name: Build and push production images
+#        uses: docker/build-push-action@v5
+#        with:
+#          context: .
+#          file: ./Dockerfile
+#          push: true
+#          tags: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest # Using 'latest' tag for simplicity
+#          target: runtime
+#          build-args: INSTALL_PROD=true
+#
+#      - name: Deploy to Server via SSH
+#        uses: appleboy/ssh-action@v1.0.3
+#        with:
+#          host: ${{ secrets.SSH_HOST }}
+#          username: ${{ secrets.SSH_USERNAME }}
+#          key: ${{ secrets.SSH_KEY }}
+#          script: |
+#            cd /var/www/your-app-directory
+#            docker compose -f docker-compose.prod.yml pull
+#            docker compose -f docker-compose.prod.yml up -d --remove-orphans
