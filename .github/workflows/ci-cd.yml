@@ -20,7 +20,7 @@ jobs:
         run: cp .env.dev.example .env.dev
 
       - name: Start services
-        run: docker compose -f docker-compose.dev.yml up --build -d
+        run: docker compose -f docker-compose.dev.yml up --build --no-cache -d
 
       - name: Wait for services
         run: |
