@@ -19,8 +19,11 @@ jobs:
       - name: Create .env file for testing
         run: cp .env.dev.example .env.dev
 
+      - name: Build fresh images without cache
+        run: docker compose -f docker-compose.dev.yml build --no-cache
+
       - name: Start services
-        run: docker compose -f docker-compose.dev.yml up --build --no-cache -d
+        run: docker compose -f docker-compose.dev.yml up -d
 
       - name: Wait for services
         run: |
