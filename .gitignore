@@ -1,11 +1,16 @@
 # GENERAL
 .git
-.gitignore
-README.md
-*.log
 __pycache__/
 *.py[cod]
 *$py.class
+*.log
+*.pid
+*.sock
+*.db
+*.sqlite3
+__MACOSX/
+.DS_Store
+Thumbs.db
 
 # ENVIRONMENTS & CONFIGS
 .env
@@ -13,6 +18,11 @@ __pycache__/
 !.env.dev.example
 .vscode/
 .idea/
+.venv/
+venv/
+env/
+ENV/
+VENV/
 
 # TESTS & COVERAGE
 .pytest_cache/
@@ -22,23 +32,5 @@ htmlcov/
 migrations/__pycache__/
 alembic/versions/__pycache__/
 alembic/versions/*.pyc
-
-# PYTHON ENVIRONMENTS
-venv/
-.venv/
-env/
-ENV/
-VENV/
-
-# DOCKER
-docker-compose.dev.yml
-docker-compose.prod.yml
-Dockerfile*
+*.egg-info/
 tmp/
-*.pid
-*.sock
-
-# MISC
-__MACOSX/
-.DS_Store
-Thumbs.db
