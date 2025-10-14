@@ -4,7 +4,6 @@ services:
     build:
       context: .
       target: runtime
-    image: fastapi-app:dev
     volumes:
       - ./:/app:delegated
     ports:
@@ -12,9 +11,12 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     env_file: .env.dev
     depends_on:
-      - db-dev
-      - redis-dev
-      - rabbitmq-dev
+      db-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+      rabbitmq-dev:
+        condition: service_healthy
     networks:
       - appnet_dev
 
@@ -23,15 +25,17 @@ services:
     build:
       context: .
       target: runtime
-    image: fastapi-app:dev
     volumes:
       - ./:/app:delegated
     command: celery -A app.tasks.worker.celery_app worker --loglevel=info --concurrency=2
     env_file: .env.dev
     depends_on:
-      - db-dev
-      - redis-dev
-      - rabbitmq-dev
+      db-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+      rabbitmq-dev:
+        condition: service_healthy
     networks:
       - appnet_dev
 
@@ -48,6 +52,11 @@ services:
       - postgres_data_dev:/var/lib/postgresql/data
     networks:
       - appnet_dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fastapi_db_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis-dev:
     container_name: fastapi_redis_dev
@@ -56,6 +65,11 @@ services:
       - "6379:6379"
     networks:
       - appnet_dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq-dev:
     container_name: fastapi_rabbitmq_dev
@@ -68,6 +82,11 @@ services:
       - "15672:15672"
     networks:
       - appnet_dev
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 networks:
   appnet_dev:
