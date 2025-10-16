@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional
 
 
@@ -29,8 +29,8 @@ class UserOut(UserBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    # ✅ Pydantic v2 format
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Class for changing user password
