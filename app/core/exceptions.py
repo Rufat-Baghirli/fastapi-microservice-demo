@@ -1,54 +1,52 @@
-import asyncio
-import pytest
-from typing import AsyncGenerator
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from fastapi import HTTPException, status
+from typing import Any
 
-from app.main import app
-from app.models.base import Base
-from app.db.session import get_session
-from app.core.config import settings
-
-# Test database URL
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/test_db"
+class AppException(HTTPException):
+    """
+    Base application exception that wraps HTTPException for consistency.
+    Use subclasses for domain-specific errors.
+    """
+    def __init__(self, status_code: int, detail: Any):
+        super().__init__(status_code=status_code, detail=detail)
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create event loop for async tests"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+class BadRequestException(AppException):
+    def __init__(self, detail: str = "Bad request"):
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
 
-@pytest.fixture(scope="function")
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Create test database session"""
-    engine = create_async_engine(TEST_DATABASE_URL, future=True, echo=False)
-    async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    async with async_session_maker() as session:
-        yield session
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-    await engine.dispose()
+class UnauthorizedException(AppException):
+    def __init__(self, detail: str = "Unauthorized"):
+        super().__init__(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
 
 
-@pytest.fixture(scope="function")
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
-    """Create test client with overridden dependencies"""
+class ForbiddenException(AppException):
+    def __init__(self, detail: str = "Forbidden"):
+        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
-    async def override_get_session():
-        yield db_session
 
-    app.dependency_overrides[get_session] = override_get_session
+class NotFoundException(AppException):
+    def __init__(self, detail: str = "Resource not found"):
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
 
-    app.dependency_overrides.clear()
+class ConflictException(AppException):
+    def __init__(self, detail: str = "Resource already exists"):
+        super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+
+class InternalServerError(AppException):
+    def __init__(self, detail: str = "Internal server error"):
+        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
+
+
+# Domain / business exceptions (examples)
+class UserNotFound(NotFoundException):
+    def __init__(self, user_id: int | None = None):
+        detail = f"User with ID {user_id} not found" if user_id else "User not found"
+        super().__init__(detail=detail)
+
+
+class InvalidCredentials(UnauthorizedException):
+    def __init__(self):
+        super().__init__(detail="Invalid email or password")
