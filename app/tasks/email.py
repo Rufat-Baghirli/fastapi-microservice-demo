@@ -1,4 +1,3 @@
-# app/tasks/email.py
 from app.tasks.worker import celery_app
 import time
 

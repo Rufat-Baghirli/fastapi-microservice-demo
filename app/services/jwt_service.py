@@ -1,4 +1,3 @@
-# app/services/jwt_service.py
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import HTTPException, status

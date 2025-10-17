@@ -1,4 +1,3 @@
-# alembic/env.py
 from logging.config import fileConfig
 import os
 import sys

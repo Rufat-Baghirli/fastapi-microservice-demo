@@ -1,4 +1,3 @@
-# app/core/logger.py
 from pathlib import Path
 from loguru import logger
 from app.core.config import settings
@@ -32,3 +31,17 @@ if settings.ENVIRONMENT == "production":
             backtrace=True,        # show python backtrace
             diagnose=False,        # avoid huge diagnostics in production unless needed
         )
+
+def log_exception(exc: Exception, extra: dict | None = None) -> None:
+    """
+    Log an exception with optional extra context.
+    Use this in exception handlers to get consistent logs.
+    """
+    try:
+        if extra:
+            logger.exception(str(exc), extra=extra)
+        else:
+            logger.exception(str(exc))
+    except Exception:
+        # fallback to a simple log if something goes wrong in loguru
+        print("Logging failed for exception:", exc)
